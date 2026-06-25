@@ -15,6 +15,8 @@ import SplashScreen from "./components/SplashScreen";
 
 import DashboardPage from "./pages/DashboardPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import AddProduct from "./pages/AddProductPage";
+import AdddProduct from "./pages/productpage";
 
 const App = () => {
 	const fetchMe = useAuthStore((state) => state.fetchMe);
@@ -58,6 +60,8 @@ const App = () => {
 							path="/workers"
 							element={<PlaceholderPage title="Workers" />}
 						/>
+						<Route path="/add-product" element={<AddProduct />} />
+						<Route path="/addd-product" element={<AdddProduct />} />
 						{/* add more routes here */}
 					</Route>
 

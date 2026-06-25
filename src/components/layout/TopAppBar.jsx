@@ -1,20 +1,22 @@
 import { useLang } from "../../context/LangContext";
 import useAuthStore from "../../stores/authStore";
+import { Link } from "react-router-dom";
+import paperImg from "../../assets/klogo.png";
 
 export default function TopAppBar() {
 	const { lang, setLang, t } = useLang();
 	const logout = useAuthStore((state) => state.logout);
 
 	return (
-		<header className="bg-white border-b-2 border-gray-200 shadow-sm flex justify-between items-center w-full px-4 md:px-8 py-3 sticky top-0 z-50">
+		<header className="bg-white border-b-2 border-gray-200 shadow-sm flex justify-between items-center w-full px-4 md:px-8 py-1 sticky top-0 z-50">
 			{/* Left: Logo + Name */}
-			<div className="flex items-center gap-3">
+			<Link to="/dashboard" className="flex items-center gap-3">
 				<img
-					src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZA0joSmev4xW8dUx4nUN4jkfUxdxRXwQrnugR_NiW1rwYBKL6qSDXtd3c_QgR9mJuD2mD5cdDO1F5v30SwZGmoVblcUhDU3tW-fx9JWTOwNNT9szi8lUO9uAsEz7sp8zDagozc5cX1SRJR6yUuuIHZZQfzneBaulHQZ3FveJWvD1t0eF-HB5wM5UWzPP2YeEBExGxa4ZtGmfJGIEyMaqQ5Z4-XqcA-GnrhAyEL6mMTueXCuC2cxHpii5Hcl8f5Ar9aTou5v_vfQG8"
-					alt="Karbaar Logo"
-					className="w-10 h-10 lg:w-12 lg:h-12 object-contain"
+					src={paperImg}
+					alt="Paper"
+					className="w-13 h-12 lg:w-18 lg:h-15 object-contain"
 				/>
-			</div>
+			</Link>
 
 			{/* Right: Lang toggle + Logout */}
 			<div className="flex items-center gap-4">
