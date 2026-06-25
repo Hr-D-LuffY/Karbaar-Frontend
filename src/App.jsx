@@ -9,7 +9,6 @@ import {
 import useAuthStore from "./stores/authStore.js";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import LoginPage from "./pages/Login.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
 import Layout from "./components/layout/Layout";
 
 import SplashScreen from "./components/SplashScreen";
