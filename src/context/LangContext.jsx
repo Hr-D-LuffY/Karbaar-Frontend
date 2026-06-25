@@ -2,7 +2,7 @@ import { createContext, useContext, useState } from "react";
 
 const translations = {
 	en: {
-		welcome_title: "Welcome, Hr Press",
+		welcome: "Welcome , ",
 		logout_btn: "Logout",
 		main_menu_label: "Main Menu",
 		nav_dashboard: "Dashboard",
@@ -33,7 +33,7 @@ const translations = {
 		footer_tagline: "আপনার ব্যবসার স্মার্ট সমাধান",
 	},
 	bn: {
-		welcome_title: "স্বাগতম, এইচআর প্রেস",
+		welcome: "স্বাগতম , ",
 		logout_btn: "লগআউট",
 		main_menu_label: "প্রধান মেনু",
 		nav_dashboard: "ড্যাশবোর্ড",

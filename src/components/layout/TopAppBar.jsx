@@ -1,7 +1,9 @@
 import { useLang } from "../../context/LangContext";
+import useAuthStore from "../../stores/authStore";
 
 export default function TopAppBar() {
 	const { lang, setLang, t } = useLang();
+	const logout = useAuthStore((state) => state.logout);
 
 	return (
 		<header className="bg-white border-b-2 border-gray-200 shadow-sm flex justify-between items-center w-full px-4 md:px-8 py-3 sticky top-0 z-50">
@@ -39,7 +41,10 @@ export default function TopAppBar() {
 					</button>
 				</div>
 
-				<button className="flex items-center gap-1 text-sm font-medium text-red-600 hover:bg-gray-100 px-3 py-2 rounded transition-all active:scale-95">
+				<button
+					className="flex items-center gap-1 text-sm font-medium text-red-600 hover:bg-gray-100 px-3 py-2 rounded transition-all active:scale-95"
+					onClick={logout}
+				>
 					<span>{t("logout_btn")}</span>
 					<span className="material-symbols-outlined text-[20px]">logout</span>
 				</button>

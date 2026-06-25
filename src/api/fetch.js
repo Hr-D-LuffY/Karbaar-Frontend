@@ -1,6 +1,6 @@
 const BASE_URL = "http://localhost:5000/api";
 
-export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
+export const apiFetch = async (endpoint, options = {}) => {
 	const res = await fetch(`${BASE_URL}${endpoint}`, {
 		...options,
 		credentials: "include",

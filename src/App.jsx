@@ -1,45 +1,72 @@
-import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { LangProvider } from "./context/LangContext";
+import { useEffect, useState } from "react";
+import {
+	BrowserRouter,
+	Routes,
+	Route,
+	Navigate,
+	Outlet,
+} from "react-router-dom";
+import useAuthStore from "./stores/authStore.js";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import LoginPage from "./pages/Login.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
 import Layout from "./components/layout/Layout";
-import DashboardPage from "./pages/DashboardPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
+
 import SplashScreen from "./components/SplashScreen";
 
-export default function App() {
-	const [loading, setLoading] = useState(true);
+import DashboardPage from "./pages/DashboardPage";
+import PlaceholderPage from "./pages/PlaceholderPage";
+
+const App = () => {
+	const fetchMe = useAuthStore((state) => state.fetchMe);
+	const [showSplash, setShowSplash] = useState(true);
 
 	useEffect(() => {
-		const timer = setTimeout(() => setLoading(false), 1500);
+		fetchMe();
+
+		const timer = setTimeout(() => {
+			setShowSplash(false);
+		}, 1500);
+
 		return () => clearTimeout(timer);
 	}, []);
 
 	return (
-		<LangProvider>
-			{/* Splash — stays mounted for 500ms fade-out after loading=false */}
-			<SplashScreen visible={loading} />
-
-			{/* App renders underneath, becomes visible after fade */}
+		<>
+			<SplashScreen visible={showSplash} />
 			<BrowserRouter>
 				<Routes>
-					<Route path="/" element={<Layout />}>
-						<Route index element={<DashboardPage />} />
+					<Route path="/login" element={<LoginPage />} />
+
+					<Route
+						element={
+							<ProtectedRoute>
+								<Layout />
+							</ProtectedRoute>
+						}
+					>
+						<Route path="/dashboard" element={<DashboardPage />} />
 						<Route
-							path="inventory"
+							path="/inventory"
 							element={<PlaceholderPage title="Inventory" />}
 						/>
-						<Route path="sales" element={<PlaceholderPage title="Sales" />} />
+						<Route path="/sales" element={<PlaceholderPage title="Sales" />} />
 						<Route
-							path="customers"
+							path="/customers"
 							element={<PlaceholderPage title="Customers" />}
 						/>
 						<Route
-							path="workers"
+							path="/workers"
 							element={<PlaceholderPage title="Workers" />}
 						/>
+						{/* add more routes here */}
 					</Route>
+
+					<Route path="/" element={<Navigate to="/dashboard" />} />
 				</Routes>
 			</BrowserRouter>
-		</LangProvider>
+		</>
 	);
-}
+};
+
+export default App;

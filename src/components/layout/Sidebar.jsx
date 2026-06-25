@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useLang } from "../../context/LangContext";
+import useAuthStore from "../../stores/authStore";
 
 const navItems = [
 	{ icon: "dashboard", key: "nav_dashboard", to: "/" },
@@ -10,6 +11,7 @@ const navItems = [
 ];
 
 export default function Sidebar({ mobileOpen, onClose }) {
+	const user = useAuthStore((state) => state.user);
 	const { t } = useLang();
 
 	return (
@@ -63,11 +65,11 @@ export default function Sidebar({ mobileOpen, onClose }) {
 				<div class="p-5 border-t border-outline-variant">
 					<div class="flex items-center gap-3">
 						<div class="w-10 h-10 bg-black rounded flex items-center justify-center text-white font-bold">
-							HPP
+							{user?.initial}
 						</div>
 						<div>
 							<p class="text-label-md font-bold text-primary">
-								Habib Printing Press
+								{user?.press_name}
 							</p>
 						</div>
 					</div>
