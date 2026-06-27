@@ -31,6 +31,11 @@ const translations = {
 		log_3_title: "Inventory Re-stock",
 		log_3_desc: "Art Paper 300GSM • +50 Reams",
 		footer_tagline: "আপনার ব্যবসার স্মার্ট সমাধান",
+		vendor_info: "Vendor Information ",
+		frequent_vendor: "Frequent Vendor",
+		Vendor_name: "Vendor Name",
+		phone_num: "Phone Number",
+		name_place: "Enter full name...",
 	},
 	bn: {
 		welcome: "স্বাগতম , ",
@@ -62,6 +67,11 @@ const translations = {
 		log_3_title: "ইনভেন্টরি রিস্টক",
 		log_3_desc: "আর্ট পেপার ৩০০জিএসএম • +৫০ রিম",
 		footer_tagline: "আপনার ব্যবসার স্মার্ট সমাধান",
+		vendor_info: "ভেন্ডরের তথ্য",
+		frequent_vendor: "নিয়মিত ভেন্ডর",
+		Vendor_name: "ভেন্ডরের নাম",
+		phone_num: "ফোন নম্বর",
+		name_place: "ভেন্ডরের নাম লিখুন...",
 	},
 };
 
