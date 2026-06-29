@@ -1,28 +1,16 @@
 import { useState, useEffect } from "react";
 import { useLang } from "../context/LangContext";
-import {
-	getCategories,
-	getProduct,
-	getProductOptions,
-} from "../services/addproduct";
+import { getCategories } from "../services/addproduct";
+import CategoryTabs from "../components/AddProduct/CategoryTabs";
+import { BottomBar, BottomBarSpacer } from "../components/AddProduct/BottomBar";
+import { ProductRow, ProductList } from "../components/AddProduct/ProductRow";
+import { useAlert } from "../context/AlertContext";
 
 const DEMO_FREQUENT_CLIENTS = [
 	{ id: 1, name: "ABC Printing", phone: "01711-000001" },
 	{ id: 2, name: "Creative Hub", phone: "01711-000002" },
 	{ id: 3, name: "Dhaka Offset", phone: "01711-000003" },
 ];
-
-function compositeKey(catId, productId, typeId, companyId) {
-	return `${catId}_${productId}_${typeId}_${companyId}`;
-}
-
-function uniqueTypes(opts) {
-	return [...new Map(opts.map((o) => [o.type_id, o.type_code])).values()];
-}
-
-function uniqueCompanies(opts) {
-	return [...new Map(opts.map((o) => [o.company_id, o.company_name])).values()];
-}
 
 function VendorSection({ vendorInfo, onVendorChange }) {
 	const { t } = useLang();
@@ -128,652 +116,6 @@ function VendorSection({ vendorInfo, onVendorChange }) {
 	);
 }
 
-function CategoryTabs({ categories, activeCategoryId, onSelect }) {
-	return (
-		<>
-			{/* Mobile: stacked vertical list */}
-			<div className="flex flex-col gap-2 mb-3 sm:hidden">
-				{categories.map((cat) => {
-					const active = cat.id === activeCategoryId;
-					return (
-						<button
-							key={cat.id}
-							onClick={() => onSelect(cat.id)}
-							className={`w-full px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors text-left ${
-								active ?
-									"bg-gray-900 text-white"
-								:	"bg-white border border-gray-200 text-gray-600"
-							}`}
-						>
-							{cat.name}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* Desktop: horizontal scrollable pills */}
-			<div className="hidden sm:flex gap-2 overflow-x-auto pb-3 mb-3 scrollbar-none">
-				{categories.map((cat) => {
-					const active = cat.id === activeCategoryId;
-					return (
-						<button
-							key={cat.id}
-							onClick={() => onSelect(cat.id)}
-							className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-colors ${
-								active ?
-									"bg-gray-900 text-white"
-								:	"bg-white border border-gray-200 text-gray-600 hover:border-gray-400"
-							}`}
-						>
-							{cat.name}
-						</button>
-					);
-				})}
-			</div>
-		</>
-	);
-}
-
-function ProductRow({
-	product,
-	activeCategoryId,
-	categoryName,
-	selections,
-	onSelectionsChange,
-}) {
-	const [open, setOpen] = useState(false);
-	const [opts, setOpts] = useState(null);
-	const [rowSel, setRowSel] = useState({ type: "", company: "" });
-
-	async function handleToggle() {
-		if (!open && opts === null) {
-			try {
-				const fetched = await getProductOptions(activeCategoryId, product.name);
-
-				setOpts(fetched);
-
-				if (fetched.length > 0) {
-					setRowSel({
-						type: fetched[0].type_code,
-						company: fetched[0].company_name,
-					});
-				}
-			} catch (error) {
-				console.error(error);
-			}
-		}
-
-		setOpen((v) => !v);
-	}
-
-	const currentOpt =
-		opts ?
-			opts.find(
-				(o) => o.type_code === rowSel.type && o.company_name === rowSel.company,
-			) || null
-		:	null;
-
-	const key = currentOpt?.id;
-	const saved = key ? selections[key] || {} : {};
-
-	const allVariants = Object.values(selections).filter(
-		(item) =>
-			item.categoryId === activeCategoryId && item.productName === product.name,
-	);
-
-	const totalReams = allVariants.reduce(
-		(sum, item) => sum + (item.reams || 0),
-		0,
-	);
-
-	const totalSheets = allVariants.reduce(
-		(sum, item) => sum + (item.sheets || 0),
-		0,
-	);
-	const hasAny = totalReams > 0 || totalSheets > 0;
-
-	function handleQtyInput(field, rawValue) {
-		if (!currentOpt || !key) return;
-		const val =
-			field === "price" ?
-				parseFloat(rawValue) || 0
-			:	Math.max(0, parseInt(rawValue) || 0);
-
-		onSelectionsChange((prev) => ({
-			...prev,
-
-			[key]: {
-				...(prev[key] || {}),
-
-				optionId: currentOpt.id,
-				categoryId: activeCategoryId,
-				categoryName,
-				productName: product.name,
-				company: currentOpt.company_name,
-				type: currentOpt.type_code,
-
-				[field]: val,
-			},
-		}));
-	}
-
-	const types = opts ? uniqueTypes(opts) : [];
-	const companies = opts ? uniqueCompanies(opts) : [];
-
-	return (
-		<div className="border-b border-gray-100 last:border-0">
-			<button
-				onClick={handleToggle}
-				className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
-			>
-				<div className="flex items-center gap-2 min-w-0">
-					<span className="text-sm font-semibold text-gray-800 truncate">
-						{product.name}
-					</span>
-					{hasAny && (
-						<span className="text-[10px] font-bold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full flex-shrink-0">
-							{totalReams > 0 && `${totalReams}R`}
-							{totalReams > 0 && totalSheets > 0 && " · "}
-							{totalSheets > 0 && `${totalSheets}S`}
-						</span>
-					)}
-				</div>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width={18}
-					height={18}
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-					strokeWidth={2}
-					className={`text-gray-400 flex-shrink-0 ml-2 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-				>
-					<path
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						d="M19 9l-7 7-7-7"
-					/>
-				</svg>
-			</button>
-
-			{open && (
-				<div className="bg-gray-50 px-3 sm:px-4 pb-4 pt-2">
-					{!opts ?
-						<p className="text-xs text-gray-400 py-2">Loading options...</p>
-					:	<>
-							{/* ── Desktop layout: original flex-wrap ── */}
-							<div className="hidden sm:flex flex-wrap items-end gap-3">
-								<div className="flex-1 min-w-[130px] space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Type
-									</label>
-									<select
-										value={rowSel.type}
-										onChange={(e) =>
-											setRowSel((s) => ({ ...s, type: e.target.value }))
-										}
-										className="w-full h-8 bg-white border border-gray-200 rounded px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									>
-										{types.map((t) => (
-											<option key={t} value={t}>
-												{t}
-											</option>
-										))}
-									</select>
-								</div>
-								<div className="flex-1 min-w-[130px] space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Company
-									</label>
-									<select
-										value={rowSel.company}
-										onChange={(e) =>
-											setRowSel((s) => ({ ...s, company: e.target.value }))
-										}
-										className="w-full h-8 bg-white border border-gray-200 rounded px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									>
-										{companies.map((c) => (
-											<option key={c} value={c}>
-												{c}
-											</option>
-										))}
-									</select>
-								</div>
-								<div className="w-20 flex-shrink-0 space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Reams
-									</label>
-									<input
-										type="number"
-										min={0}
-										defaultValue={saved.reams || 0}
-										key={`${key}-reams-d`}
-										onInput={(e) => handleQtyInput("reams", e.target.value)}
-										className="w-full h-8 border border-gray-200 rounded px-1 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									/>
-								</div>
-								<div className="w-20 flex-shrink-0 space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Sheets
-									</label>
-									<input
-										type="number"
-										min={0}
-										defaultValue={saved.sheets || 0}
-										key={`${key}-sheets-d`}
-										onInput={(e) => handleQtyInput("sheets", e.target.value)}
-										className="w-full h-8 border border-gray-200 rounded px-1 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									/>
-								</div>
-								<div className="w-28 flex-shrink-0 space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Price (৳)
-									</label>
-									<input
-										type="number"
-										min={0}
-										defaultValue={saved.price || ""}
-										placeholder="0.00"
-										key={`${key}-price-d`}
-										onInput={(e) => handleQtyInput("price", e.target.value)}
-										className="w-full h-8 border border-gray-200 rounded px-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									/>
-								</div>
-							</div>
-
-							{/* ── Mobile layout: stacked rows ── */}
-							<div className="sm:hidden space-y-3">
-								<div className="space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Type
-									</label>
-									<select
-										value={rowSel.type}
-										onChange={(e) =>
-											setRowSel((s) => ({ ...s, type: e.target.value }))
-										}
-										className="w-full h-10 bg-white border border-gray-200 rounded px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									>
-										{types.map((t) => (
-											<option key={t} value={t}>
-												{t}
-											</option>
-										))}
-									</select>
-								</div>
-								<div className="space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Company
-									</label>
-									<select
-										value={rowSel.company}
-										onChange={(e) =>
-											setRowSel((s) => ({ ...s, company: e.target.value }))
-										}
-										className="w-full h-10 bg-white border border-gray-200 rounded px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									>
-										{companies.map((c) => (
-											<option key={c} value={c}>
-												{c}
-											</option>
-										))}
-									</select>
-								</div>
-								<div className="grid grid-cols-2 gap-3">
-									<div className="space-y-1">
-										<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-											Reams
-										</label>
-										<input
-											type="number"
-											min={0}
-											defaultValue={saved.reams || 0}
-											key={`${key}-reams-m`}
-											onInput={(e) => handleQtyInput("reams", e.target.value)}
-											className="w-full h-10 border border-gray-200 rounded px-3 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-										/>
-									</div>
-									<div className="space-y-1">
-										<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-											Sheets
-										</label>
-										<input
-											type="number"
-											min={0}
-											defaultValue={saved.sheets || 0}
-											key={`${key}-sheets-m`}
-											onInput={(e) => handleQtyInput("sheets", e.target.value)}
-											className="w-full h-10 border border-gray-200 rounded px-3 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-										/>
-									</div>
-								</div>
-								<div className="space-y-1">
-									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-										Price (৳)
-									</label>
-									<input
-										type="number"
-										min={0}
-										defaultValue={saved.price || ""}
-										placeholder="0.00"
-										key={`${key}-price-m`}
-										onInput={(e) => handleQtyInput("price", e.target.value)}
-										className="w-full h-10 border border-gray-200 rounded px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									/>
-								</div>
-							</div>
-						</>
-					}
-				</div>
-			)}
-		</div>
-	);
-}
-
-function ProductList({
-	activeCategoryId,
-	categories,
-	selections,
-	onSelectionsChange,
-}) {
-	const cat = categories.find((c) => c.id === activeCategoryId);
-
-	const [productlist, setproductlist] = useState([]);
-
-	useEffect(() => {
-		if (activeCategoryId == null) return;
-		async function load() {
-			try {
-				const data = await getProduct(activeCategoryId);
-
-				setproductlist(data);
-			} catch (error) {
-				console.error(error);
-			}
-		}
-
-		load();
-	}, [activeCategoryId]);
-	const products = productlist;
-
-	return (
-		<section className="bg-white shadow-sm border border-gray-100 border-l-4 border-l-cyan-500 rounded-lg overflow-hidden min-h-[240px] sm:min-h-[280px]">
-			<div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-				<h3 className="text-xs font-bold uppercase tracking-widest text-gray-600">
-					{cat?.name} Stock
-				</h3>
-			</div>
-			<div>
-				{products.length === 0 ?
-					<p className="px-4 py-8 text-center text-sm text-gray-400">
-						No products found.
-					</p>
-				:	products.map((p) => (
-						<ProductRow
-							key={p.name}
-							product={p}
-							activeCategoryId={activeCategoryId}
-							categoryName={cat?.name || ""}
-							selections={selections}
-							onSelectionsChange={onSelectionsChange}
-						/>
-					))
-				}
-			</div>
-		</section>
-	);
-}
-
-function BottomBar({
-	selections,
-	isDue,
-	setIsDue,
-	advance,
-	setAdvance,
-	onOpenModal,
-	navHeight = 64,
-}) {
-	const [isMobile, setIsMobile] = useState(
-		() => typeof window !== "undefined" && window.innerWidth < 640,
-	);
-	useEffect(() => {
-		const handler = () => setIsMobile(window.innerWidth < 640);
-		window.addEventListener("resize", handler);
-		return () => window.removeEventListener("resize", handler);
-	}, []);
-	const items = Object.values(selections).filter(
-		(s) => s.reams > 0 || s.sheets > 0,
-	);
-	if (items.length === 0) return null;
-
-	const totalReams = items.reduce((s, i) => s + (i.reams || 0), 0);
-	const totalSheets = items.reduce((s, i) => s + (i.sheets || 0), 0);
-	const grandTotal = items.reduce(
-		(sum, i) =>
-			sum +
-			(i.reams || 0) * (i.price || 0) +
-			((i.sheets || 0) / 500) * (i.price || 0),
-		0,
-	);
-	const dueBalance = Math.max(0, grandTotal - advance);
-
-	return (
-		<div
-			className="fixed left-0 lg:left-64 right-0 bg-white border-t-2 border-gray-100 px-3 sm:px-6 md:px-8 pt-3 z-40"
-			style={{
-				bottom: isMobile ? navHeight : 0,
-				boxShadow: "0 -4px 12px rgba(0,0,0,0.07)",
-				paddingBottom: "0.75rem",
-			}}
-		>
-			<div className="max-w-5xl mx-auto space-y-2.5">
-				{/* ── MOBILE layout (hidden on sm+) ── */}
-				<div className="sm:hidden space-y-2">
-					{/* Row 1: Reams | divider | Sheets | divider | Total */}
-					<div className="flex items-center gap-3">
-						<div className="flex-1">
-							<p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
-								Reams
-							</p>
-							<p className="text-base font-semibold text-gray-900">
-								{totalReams > 0 ? `${totalReams} Ream` : "—"}
-							</p>
-						</div>
-						<div className="h-8 w-px bg-gray-200 flex-shrink-0" />
-						<div className="flex-1">
-							<p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
-								Sheets
-							</p>
-							<p className="text-base font-semibold text-gray-900">
-								{totalSheets > 0 ? `${totalSheets} Sheet` : "—"}
-							</p>
-						</div>
-						<div className="h-8 w-px bg-gray-200 flex-shrink-0" />
-						<div className="flex-1 text-right">
-							<p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
-								Total
-							</p>
-							<p className="text-base font-bold text-gray-900">
-								৳
-								{grandTotal.toLocaleString("en-BD", {
-									minimumFractionDigits: 2,
-									maximumFractionDigits: 2,
-								})}
-							</p>
-						</div>
-					</div>
-
-					{/* Row 2: Due toggle — full width */}
-					<div className="flex items-center justify-between">
-						<label className="flex items-center gap-2 cursor-pointer select-none">
-							<span className="text-xs font-bold uppercase tracking-wider text-gray-600">
-								Due?
-							</span>
-							<input
-								type="checkbox"
-								checked={isDue}
-								onChange={(e) => {
-									setIsDue(e.target.checked);
-									if (!e.target.checked) setAdvance(0);
-								}}
-								className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-cyan-400"
-							/>
-						</label>
-						{isDue && (
-							<div className="flex items-center gap-3">
-								<div>
-									<p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
-										Advance (৳)
-									</p>
-									<input
-										type="number"
-										min={0}
-										value={advance}
-										onChange={(e) =>
-											setAdvance(parseFloat(e.target.value) || 0)
-										}
-										className="w-24 h-8 rounded border border-gray-200 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-									/>
-								</div>
-								<div className="text-right">
-									<p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
-										Due Balance
-									</p>
-									<p className="text-sm font-bold text-red-500">
-										৳
-										{dueBalance.toLocaleString("en-BD", {
-											minimumFractionDigits: 2,
-											maximumFractionDigits: 2,
-										})}
-									</p>
-								</div>
-							</div>
-						)}
-					</div>
-				</div>
-
-				{/* ── DESKTOP layout (hidden on mobile) ── */}
-				<div className="hidden sm:block space-y-2.5">
-					<div className="flex items-center justify-between gap-2">
-						<div className="flex items-center gap-6 min-w-0">
-							<div>
-								<p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-									Total Quantity
-								</p>
-								<p className="text-lg font-semibold text-gray-900">
-									{totalReams > 0 && `${totalReams} Ream`}
-									{totalReams > 0 && totalSheets > 0 && " · "}
-									{totalSheets > 0 && `${totalSheets} Sheet`}
-								</p>
-							</div>
-							<div className="h-8 w-px bg-gray-100 flex-shrink-0" />
-							<div>
-								<p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-									Grand Total
-								</p>
-								<p className="text-lg font-bold text-gray-900">
-									৳
-									{grandTotal.toLocaleString("en-BD", {
-										minimumFractionDigits: 2,
-										maximumFractionDigits: 2,
-									})}
-								</p>
-							</div>
-						</div>
-						<div className="flex items-center gap-4 flex-shrink-0">
-							<label className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg cursor-pointer select-none">
-								<span className="text-xs font-bold uppercase tracking-wider text-gray-600">
-									Due?
-								</span>
-								<input
-									type="checkbox"
-									checked={isDue}
-									onChange={(e) => {
-										setIsDue(e.target.checked);
-										if (!e.target.checked) setAdvance(0);
-									}}
-									className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-cyan-400"
-								/>
-							</label>
-							{isDue && (
-								<div className="flex items-center gap-4">
-									<div className="space-y-0.5">
-										<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-											Advance (৳)
-										</label>
-										<input
-											type="number"
-											min={0}
-											value={advance}
-											onChange={(e) =>
-												setAdvance(parseFloat(e.target.value) || 0)
-											}
-											className="w-24 h-9 rounded border border-gray-200 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-										/>
-									</div>
-									<div className="space-y-0.5">
-										<p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-											Due Balance
-										</p>
-										<p className="text-sm font-bold text-red-500">
-											৳
-											{dueBalance.toLocaleString("en-BD", {
-												minimumFractionDigits: 2,
-												maximumFractionDigits: 2,
-											})}
-										</p>
-									</div>
-								</div>
-							)}
-						</div>
-					</div>
-				</div>
-
-				{/* Review button — shared */}
-				<button
-					onClick={onOpenModal}
-					className="w-full h-11 sm:h-12 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-700 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
-				>
-					Review & Proceed
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width={18}
-						height={18}
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						strokeWidth={2}
-					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							d="M9 5l7 7-7 7"
-						/>
-					</svg>
-				</button>
-			</div>
-		</div>
-	);
-}
-
-function BottomBarSpacer({ selections, isDue, navHeight = 64 }) {
-	const [isMobile, setIsMobile] = useState(
-		() => typeof window !== "undefined" && window.innerWidth < 640,
-	);
-	useEffect(() => {
-		const handler = () => setIsMobile(window.innerWidth < 640);
-		window.addEventListener("resize", handler);
-		return () => window.removeEventListener("resize", handler);
-	}, []);
-	const hasItems = Object.values(selections).some(
-		(s) => s.reams > 0 || s.sheets > 0,
-	);
-	if (!hasItems) return null;
-	const barHeight = isDue ? 200 : 148;
-	const height = barHeight + (isMobile ? navHeight : 0);
-	return <div style={{ height }} />;
-}
-
 function ReviewModal({
 	selections,
 	isDue,
@@ -786,6 +128,7 @@ function ReviewModal({
 	const [isMobile, setIsMobile] = useState(
 		() => typeof window !== "undefined" && window.innerWidth < 640,
 	);
+	console.log(selections);
 	useEffect(() => {
 		const handler = () => setIsMobile(window.innerWidth < 640);
 		window.addEventListener("resize", handler);
@@ -958,7 +301,7 @@ function ReviewModal({
 
 											return (
 												<div
-													key={item.optionId}
+													key={item.productId}
 													className="flex justify-between items-start gap-2"
 												>
 													<div className="min-w-0">
@@ -1133,6 +476,7 @@ export default function AddOrderPage({ navHeight = 64 }) {
 		name: "",
 		phone: "",
 	});
+	const { showAlert } = useAlert();
 
 	useEffect(() => {
 		async function load() {
@@ -1156,10 +500,63 @@ export default function AddOrderPage({ navHeight = 64 }) {
 		const items = Object.values(selections).filter(
 			(s) => s.reams > 0 || s.sheets > 0,
 		);
-		alert(
-			`Submitted! ${items.length} item(s) for ${vendorInfo.name || "unknown vendor"}`,
-		);
+
+		const missingPrice = items.find((s) => !s.price || s.price <= 0);
+		if (missingPrice) {
+			showAlert(
+				`Please enter a buying price for "${missingPrice.productName}" — ${missingPrice.type} (${missingPrice.company}) before confirming.`,
+				"warning",
+			);
+			return;
+		}
+
+		const payload = {
+			vendor: {
+				clientId: vendorInfo.clientId,
+				name: vendorInfo.name,
+				phone: vendorInfo.phone,
+			},
+			payment: {
+				isDue,
+				advance: isDue ? advance : 0,
+				dueBalance:
+					isDue ?
+						Math.max(
+							0,
+							items.reduce(
+								(sum, i) =>
+									sum +
+									(i.reams || 0) * (i.price || 0) +
+									((i.sheets || 0) / 500) * (i.price || 0),
+								0,
+							) - advance,
+						)
+					:	0,
+			},
+			items: items.map((i) => ({
+				productId: i.productId,
+				categoryId: i.categoryId,
+				categoryName: i.categoryName,
+				productName: i.productName,
+				company: i.company,
+				type: i.type,
+				reams: i.reams || 0,
+				sheets: i.sheets || 0,
+				price: i.price,
+				lineTotal:
+					(i.reams || 0) * (i.price || 0) +
+					((i.sheets || 0) / 500) * (i.price || 0),
+			})),
+		};
+
+		console.log("payload →", payload); // replace with your API call
+		// e.g. await yourApiService.createPurchaseOrder(payload);
+
 		setShowModal(false);
+		setSelections({});
+		setVendorInfo({ clientId: null, name: "", phone: "" });
+		setIsDue(false);
+		setAdvance(0);
 	}
 	return (
 		<div className="p-3 sm:p-4 md:p-8 max-w-5xl mx-auto">

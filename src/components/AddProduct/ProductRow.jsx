@@ -1,229 +1,359 @@
 import { useState, useEffect } from "react";
-import { apiFetch } from "../../api/fetch";
+import { getProduct, getProductOptions } from "../../services/addproduct";
 
-export default function ProductRow({
+function uniqueTypes(opts) {
+	return [...new Map(opts.map((o) => [o.type_id, o.type_code])).values()];
+}
+
+function uniqueCompanies(opts) {
+	return [...new Map(opts.map((o) => [o.company_id, o.company_name])).values()];
+}
+
+export function ProductRow({
 	product,
-	categoryId,
-	onQuantityChange,
-	savedValues,
+	activeCategoryId,
+	categoryName,
+	selections,
+	onSelectionsChange,
 }) {
-	const [productinfo, setProductInfo] = useState(null);
 	const [open, setOpen] = useState(false);
+	const [opts, setOpts] = useState(null);
+	const [rowSel, setRowSel] = useState({ type: "", company: "" });
 
-	// ── Selected type/company for THIS row's current view ──
-	// These are just UI state — the actual saved data lives in parent keyed by compositeKey
-	const [selectedCompany, setSelectedCompany] = useState(null);
-	const [selectedType, setSelectedType] = useState(null);
-
-	useEffect(() => {
-		if (!open || productinfo) return;
-		const fetchProductInfo = async () => {
+	async function handleToggle() {
+		if (!open && opts === null) {
 			try {
-				const data = await apiFetch(
-					`/products/options?category_id=${categoryId}&name=${product.name}`,
-				);
-				setProductInfo(data);
-
-				// Auto-select first option as default
-				if (data.length > 0) {
-					setSelectedCompany(data[0].company_name);
-					setSelectedType(data[0].type_code);
+				const fetched = await getProductOptions(activeCategoryId, product.name);
+				setOpts(fetched);
+				if (fetched.length > 0) {
+					setRowSel({
+						type: fetched[0].type_code,
+						company: fetched[0].company_name,
+					});
 				}
 			} catch (error) {
-				console.error("Failed to load product info:", error);
+				console.error(error);
 			}
-		};
-		fetchProductInfo();
-	}, [open]);
+		}
+		setOpen((v) => !v);
+	}
 
-	const companies =
-		productinfo ?
-			[
-				...new Map(
-					productinfo.map((i) => [i.company_id, i.company_name]),
-				).values(),
-			]
-		:	[];
-
-	const types =
-		productinfo ?
-			[...new Map(productinfo.map((i) => [i.type_id, i.type_code])).values()]
-		:	[];
-
-	// ── Find the matching option for current type+company selection ──
-	const currentOption = productinfo?.find(
-		(i) => i.company_name === selectedCompany && i.type_code === selectedType,
-	);
-
-	// ── Composite key: productId_typeId_companyId ──
-	// This is what makes each combination a SEPARATE entry in parent state
-	// ✅ Include categoryId so same product name in different categories never collides
-	// ✅ Must be this exact format — 4 segments
-	const compositeKey =
-		currentOption ?
-			`${categoryId}_${product.id}_${currentOption.type_id}_${currentOption.company_id}`
+	const currentOpt =
+		opts ?
+			opts.find(
+				(o) => o.type_code === rowSel.type && o.company_name === rowSel.company,
+			) || null
 		:	null;
 
-	// ── Read saved values for THIS specific combination from parent ──
-	const currentSaved = compositeKey ? savedValues?.[compositeKey] || {} : {};
-	const reams = currentSaved.reams || 0;
-	const sheets = currentSaved.sheets || 0;
-	const price = currentSaved.price || "";
+	const key = currentOpt?.id;
+	const saved = key ? selections[key] || {} : {};
 
-	// ── Check if ANY combo of this product has quantity (for the badge) ──
-	const hasQuantity =
-		savedValues ?
-			Object.values(savedValues).some((v) => v.reams > 0 || v.sheets > 0)
-		:	false;
+	const allVariants = Object.values(selections).filter(
+		(item) =>
+			item.categoryId === activeCategoryId && item.productName === product.name,
+	);
 
-	// ── Total reams across all combos of this product (for badge display) ──
-	const totalReams =
-		savedValues ?
-			Object.values(savedValues).reduce((sum, v) => sum + (v.reams || 0), 0)
-		:	0;
-	const totalSheets =
-		savedValues ?
-			Object.values(savedValues).reduce((sum, v) => sum + (v.sheets || 0), 0)
-		:	0;
+	const totalReams = allVariants.reduce(
+		(sum, item) => sum + (item.reams || 0),
+		0,
+	);
+	const totalSheets = allVariants.reduce(
+		(sum, item) => sum + (item.sheets || 0),
+		0,
+	);
+	const hasAny = totalReams > 0 || totalSheets > 0;
 
-	// ── When qty/price changes, store under compositeKey ──
-	const handleChange = (field, value) => {
-		if (!compositeKey) return; // can't store without knowing the option
-		const numVal = Math.max(0, Number(value) || 0);
+	function handleDropdownChange(field, newValue) {
+		const oldOpt = currentOpt;
+		setRowSel((s) => ({ ...s, [field]: newValue }));
+		if (oldOpt?.id) {
+			onSelectionsChange((prev) => {
+				const next = { ...prev };
+				delete next[oldOpt.id];
+				return next;
+			});
+		}
+	}
 
-		onQuantityChange(compositeKey, {
-			// Identity fields
-			compositeKey,
-			productId: product.id,
-			productName: product.name,
-			categoryId,
-			optionId: currentOption?.id,
-			company: selectedCompany,
-			type: selectedType,
-			// Spread existing saved values, then override changed field
-			...currentSaved,
-			[field]: field === "price" ? parseFloat(value) || 0 : numVal,
-		});
-	};
+	function handleQtyInput(field, rawValue) {
+		if (!currentOpt || !key) return;
+		const val =
+			field === "price" ?
+				parseFloat(rawValue) || 0
+			:	Math.max(0, parseInt(rawValue) || 0);
 
-	// ── When type/company changes, just update local UI selection ──
-	// The qty inputs will now show values for the newly selected combo
-	const handleSelectChange = (field, value) => {
-		if (field === "company") setSelectedCompany(value);
-		if (field === "type") setSelectedType(value);
-		// No need to call onQuantityChange here — user hasn't entered qty yet for this combo
-	};
+		onSelectionsChange((prev) => ({
+			...prev,
+			[key]: {
+				...(prev[key] || {}),
+				productId: currentOpt.id,
+				categoryId: activeCategoryId,
+				categoryName,
+				productName: product.name,
+				company: currentOpt.company_name,
+				type: currentOpt.type_code,
+				[field]: val,
+			},
+		}));
+	}
+
+	const types = opts ? uniqueTypes(opts) : [];
+	const companies = opts ? uniqueCompanies(opts) : [];
 
 	return (
 		<div className="border-b border-gray-100 last:border-0">
 			<button
-				onClick={() => setOpen((o) => !o)}
+				onClick={handleToggle}
 				className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
 			>
-				<div className="flex items-center gap-2">
-					<span className="text-sm font-semibold text-gray-800">
+				<div className="flex items-center gap-2 min-w-0">
+					<span className="text-sm font-semibold text-gray-800 truncate">
 						{product.name}
 					</span>
-					{/* Badge shows TOTAL across all combos of this product */}
-					{hasQuantity && (
-						<span className="text-[10px] font-bold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full">
+					{hasAny && (
+						<span className="text-[10px] font-bold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full flex-shrink-0">
 							{totalReams > 0 && `${totalReams}R`}
 							{totalReams > 0 && totalSheets > 0 && " · "}
 							{totalSheets > 0 && `${totalSheets}S`}
 						</span>
 					)}
 				</div>
-				<span
-					className={`material-symbols-outlined text-[18px] text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width={18}
+					height={18}
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+					strokeWidth={2}
+					className={`text-gray-400 flex-shrink-0 ml-2 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
 				>
-					expand_more
-				</span>
+					<path
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						d="M19 9l-7 7-7-7"
+					/>
+				</svg>
 			</button>
 
 			{open && (
-				<div className="bg-gray-50 px-4 pb-4 pt-2">
-					{!productinfo ?
+				<div className="bg-gray-50 px-3 sm:px-4 pb-4 pt-2">
+					{!opts ?
 						<p className="text-xs text-gray-400 py-2">Loading options...</p>
-					:	<div className="flex flex-wrap items-end gap-3">
-							<div className="flex-1 min-w-[130px] space-y-1">
-								<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-									Type
-								</label>
-								<select
-									value={selectedType || ""}
-									onChange={(e) => handleSelectChange("type", e.target.value)}
-									className="w-full h-8 bg-white border border-gray-200 rounded px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-								>
-									{types.map((code) => (
-										<option key={code} value={code}>
-											{code}
-										</option>
-									))}
-								</select>
+					:	<>
+							{/* ── Desktop layout ── */}
+							<div className="hidden sm:flex flex-wrap items-end gap-3">
+								<div className="flex-1 min-w-[130px] space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Type
+									</label>
+									<select
+										value={rowSel.type}
+										onChange={(e) =>
+											handleDropdownChange("type", e.target.value)
+										}
+										className="w-full h-8 bg-white border border-gray-200 rounded px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									>
+										{types.map((t) => (
+											<option key={t} value={t}>
+												{t}
+											</option>
+										))}
+									</select>
+								</div>
+								<div className="flex-1 min-w-[130px] space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Company
+									</label>
+									<select
+										value={rowSel.company}
+										onChange={(e) =>
+											handleDropdownChange("company", e.target.value)
+										}
+										className="w-full h-8 bg-white border border-gray-200 rounded px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									>
+										{companies.map((c) => (
+											<option key={c} value={c}>
+												{c}
+											</option>
+										))}
+									</select>
+								</div>
+								<div className="w-20 flex-shrink-0 space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Reams
+									</label>
+									<input
+										type="number"
+										min={0}
+										value={saved.reams ?? 0}
+										onChange={(e) => handleQtyInput("reams", e.target.value)}
+										className="w-full h-8 border border-gray-200 rounded px-1 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									/>
+								</div>
+								<div className="w-20 flex-shrink-0 space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Sheets
+									</label>
+									<input
+										type="number"
+										min={0}
+										value={saved.sheets ?? 0}
+										onChange={(e) => handleQtyInput("sheets", e.target.value)}
+										className="w-full h-8 border border-gray-200 rounded px-1 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									/>
+								</div>
+								<div className="w-28 flex-shrink-0 space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Price (৳)
+									</label>
+									<input
+										type="number"
+										min={0}
+										value={saved.price ?? ""}
+										placeholder="0.00"
+										onChange={(e) => handleQtyInput("price", e.target.value)}
+										className="w-full h-8 border border-gray-200 rounded px-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									/>
+								</div>
 							</div>
 
-							<div className="flex-1 min-w-[130px] space-y-1">
-								<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-									Company
-								</label>
-								<select
-									value={selectedCompany || ""}
-									onChange={(e) =>
-										handleSelectChange("company", e.target.value)
-									}
-									className="w-full h-8 bg-white border border-gray-200 rounded px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-								>
-									{companies.map((name) => (
-										<option key={name} value={name}>
-											{name}
-										</option>
-									))}
-								</select>
+							{/* ── Mobile layout ── */}
+							<div className="sm:hidden space-y-3">
+								<div className="space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Type
+									</label>
+									<select
+										value={rowSel.type}
+										onChange={(e) =>
+											handleDropdownChange("type", e.target.value)
+										}
+										className="w-full h-10 bg-white border border-gray-200 rounded px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									>
+										{types.map((t) => (
+											<option key={t} value={t}>
+												{t}
+											</option>
+										))}
+									</select>
+								</div>
+								<div className="space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Company
+									</label>
+									<select
+										value={rowSel.company}
+										onChange={(e) =>
+											handleDropdownChange("company", e.target.value)
+										}
+										className="w-full h-10 bg-white border border-gray-200 rounded px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									>
+										{companies.map((c) => (
+											<option key={c} value={c}>
+												{c}
+											</option>
+										))}
+									</select>
+								</div>
+								<div className="grid grid-cols-2 gap-3">
+									<div className="space-y-1">
+										<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+											Reams
+										</label>
+										<input
+											type="number"
+											min={0}
+											value={saved.reams ?? 0}
+											onChange={(e) => handleQtyInput("reams", e.target.value)}
+											className="w-full h-10 border border-gray-200 rounded px-3 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
+										/>
+									</div>
+									<div className="space-y-1">
+										<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+											Sheets
+										</label>
+										<input
+											type="number"
+											min={0}
+											value={saved.sheets ?? 0}
+											onChange={(e) => handleQtyInput("sheets", e.target.value)}
+											className="w-full h-10 border border-gray-200 rounded px-3 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
+										/>
+									</div>
+								</div>
+								<div className="space-y-1">
+									<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+										Price (৳)
+									</label>
+									<input
+										type="number"
+										min={0}
+										value={saved.price ?? ""}
+										placeholder="0.00"
+										onChange={(e) => handleQtyInput("price", e.target.value)}
+										className="w-full h-10 border border-gray-200 rounded px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									/>
+								</div>
 							</div>
-
-							<div className="w-20 flex-shrink-0 space-y-1">
-								<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-									Reams
-								</label>
-								<input
-									type="number"
-									min={0}
-									value={reams}
-									onChange={(e) => handleChange("reams", e.target.value)}
-									className="w-full h-8 border border-gray-200 rounded px-1 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-								/>
-							</div>
-
-							<div className="w-20 flex-shrink-0 space-y-1">
-								<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-									Sheets
-								</label>
-								<input
-									type="number"
-									min={0}
-									value={sheets}
-									onChange={(e) => handleChange("sheets", e.target.value)}
-									className="w-full h-8 border border-gray-200 rounded px-1 text-center text-sm font-bold bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-								/>
-							</div>
-
-							<div className="w-28 flex-shrink-0 space-y-1">
-								<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-									Price (৳)
-								</label>
-								<input
-									type="number"
-									min={0}
-									value={price}
-									placeholder="0.00"
-									onChange={(e) => handleChange("price", e.target.value)}
-									className="w-full h-8 border border-gray-200 rounded px-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-cyan-400"
-								/>
-							</div>
-						</div>
+						</>
 					}
 				</div>
 			)}
 		</div>
+	);
+}
+
+export function ProductList({
+	activeCategoryId,
+	categories,
+	selections,
+	onSelectionsChange,
+}) {
+	const cat = categories.find((c) => c.id === activeCategoryId);
+
+	const [productlist, setproductlist] = useState([]);
+
+	useEffect(() => {
+		if (activeCategoryId == null) return;
+		async function load() {
+			try {
+				const data = await getProduct(activeCategoryId);
+
+				setproductlist(data);
+			} catch (error) {
+				console.error(error);
+			}
+		}
+
+		load();
+	}, [activeCategoryId]);
+	const products = productlist;
+
+	return (
+		<section className="bg-white shadow-sm border border-gray-100 border-l-4 border-l-cyan-500 rounded-lg overflow-hidden min-h-[240px] sm:min-h-[280px]">
+			<div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+				<h3 className="text-xs font-bold uppercase tracking-widest text-gray-600">
+					{cat?.name} Stock
+				</h3>
+			</div>
+			<div>
+				{products.length === 0 ?
+					<p className="px-4 py-8 text-center text-sm text-gray-400">
+						No products found.
+					</p>
+				:	products.map((p) => (
+						<ProductRow
+							key={p.name}
+							product={p}
+							activeCategoryId={activeCategoryId}
+							categoryName={cat?.name || ""}
+							selections={selections}
+							onSelectionsChange={onSelectionsChange}
+						/>
+					))
+				}
+			</div>
+		</section>
 	);
 }
