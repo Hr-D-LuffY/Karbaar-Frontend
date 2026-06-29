@@ -6,6 +6,8 @@ export function BottomBar({
 	setIsDue,
 	advance,
 	setAdvance,
+	transportCost,
+	setTransportCost,
 	onOpenModal,
 	navHeight = 64,
 }) {
@@ -24,13 +26,14 @@ export function BottomBar({
 
 	const totalReams = items.reduce((s, i) => s + (i.reams || 0), 0);
 	const totalSheets = items.reduce((s, i) => s + (i.sheets || 0), 0);
-	const grandTotal = items.reduce(
-		(sum, i) =>
-			sum +
-			(i.reams || 0) * (i.price || 0) +
-			((i.sheets || 0) / 500) * (i.price || 0),
-		0,
-	);
+	const grandTotal =
+		items.reduce(
+			(sum, i) =>
+				sum +
+				(i.reams || 0) * (i.price || 0) +
+				((i.sheets || 0) / 500) * (i.price || 0),
+			0,
+		) + (transportCost || 0);
 	const dueBalance = Math.max(0, grandTotal - advance);
 
 	return (
@@ -81,6 +84,21 @@ export function BottomBar({
 
 					{/* Row 2: Due toggle — full width */}
 					<div className="flex items-center justify-between">
+						<div className="space-y-0.5">
+							<p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+								Transport (৳)
+							</p>
+							<input
+								type="number"
+								min={0}
+								value={transportCost}
+								onChange={(e) =>
+									setTransportCost(parseFloat(e.target.value) || 0)
+								}
+								placeholder="0.00"
+								className="w-24 h-8 rounded border border-gray-200 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+							/>
+						</div>
 						<label className="flex items-center gap-2 cursor-pointer select-none">
 							<span className="text-xs font-bold uppercase tracking-wider text-gray-600">
 								Due?
@@ -157,6 +175,22 @@ export function BottomBar({
 							</div>
 						</div>
 						<div className="flex items-center gap-4 flex-shrink-0">
+							{/* Transport cost — desktop */}
+							<div className="space-y-0.5">
+								<label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
+									Transport (৳)
+								</label>
+								<input
+									type="number"
+									min={0}
+									value={transportCost}
+									onChange={(e) =>
+										setTransportCost(parseFloat(e.target.value) || 0)
+									}
+									placeholder="0.00"
+									className="w-24 h-9 rounded border border-gray-200 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+								/>
+							</div>
 							<label className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg cursor-pointer select-none">
 								<span className="text-xs font-bold uppercase tracking-wider text-gray-600">
 									Due?
@@ -245,7 +279,7 @@ export function BottomBarSpacer({ selections, isDue, navHeight = 64 }) {
 		(s) => s.reams > 0 || s.sheets > 0,
 	);
 	if (!hasItems) return null;
-	const barHeight = isDue ? 200 : 148;
+	const barHeight = isDue ? 200 : 160;
 	const height = barHeight + (isMobile ? navHeight : 0);
 	return <div style={{ height }} />;
 }

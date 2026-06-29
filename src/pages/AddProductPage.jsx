@@ -471,6 +471,7 @@ export default function AddOrderPage({ navHeight = 64 }) {
 	const [showModal, setShowModal] = useState(false);
 	const [isDue, setIsDue] = useState(false);
 	const [advance, setAdvance] = useState(0);
+	const [transportCost, setTransportCost] = useState(0);
 	const [vendorInfo, setVendorInfo] = useState({
 		clientId: null,
 		name: "",
@@ -517,6 +518,7 @@ export default function AddOrderPage({ navHeight = 64 }) {
 				phone: vendorInfo.phone,
 			},
 			payment: {
+				transportCost: transportCost || 0,
 				isDue,
 				advance: isDue ? advance : 0,
 				dueBalance:
@@ -557,6 +559,7 @@ export default function AddOrderPage({ navHeight = 64 }) {
 		setVendorInfo({ clientId: null, name: "", phone: "" });
 		setIsDue(false);
 		setAdvance(0);
+		setTransportCost(0);
 	}
 	return (
 		<div className="p-3 sm:p-4 md:p-8 max-w-5xl mx-auto">
@@ -587,6 +590,8 @@ export default function AddOrderPage({ navHeight = 64 }) {
 				setIsDue={setIsDue}
 				advance={advance}
 				setAdvance={setAdvance}
+				transportCost={transportCost}
+				setTransportCost={setTransportCost}
 				onOpenModal={() => setShowModal(true)}
 				navHeight={navHeight}
 			/>
