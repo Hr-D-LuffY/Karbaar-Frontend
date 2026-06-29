@@ -19,6 +19,7 @@ export function BottomBar({
 		window.addEventListener("resize", handler);
 		return () => window.removeEventListener("resize", handler);
 	}, []);
+
 	const items = Object.values(selections).filter(
 		(s) => s.reams > 0 || s.sheets > 0,
 	);
@@ -35,6 +36,13 @@ export function BottomBar({
 			0,
 		) + (transportCost || 0);
 	const dueBalance = Math.max(0, grandTotal - advance);
+
+	const transportValue = transportCost === null ? "" : transportCost;
+
+	function handleTransportChange(e) {
+		const raw = e.target.value;
+		setTransportCost(raw === "" ? null : parseFloat(raw));
+	}
 
 	return (
 		<div
@@ -82,7 +90,7 @@ export function BottomBar({
 						</div>
 					</div>
 
-					{/* Row 2: Due toggle — full width */}
+					{/* Row 2: Transport + Due toggle */}
 					<div className="flex items-center justify-between">
 						<div className="space-y-0.5">
 							<p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
@@ -91,12 +99,14 @@ export function BottomBar({
 							<input
 								type="number"
 								min={0}
-								value={transportCost}
-								onChange={(e) =>
-									setTransportCost(parseFloat(e.target.value) || 0)
-								}
-								placeholder="0.00"
-								className="w-24 h-8 rounded border border-gray-200 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+								value={transportValue}
+								onChange={handleTransportChange}
+								placeholder="Required"
+								className={`w-24 h-8 rounded border px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400 ${
+									transportCost === null ?
+										"border-red-400 bg-red-50 placeholder-red-400"
+									:	"border-gray-200"
+								}`}
 							/>
 						</div>
 						<label className="flex items-center gap-2 cursor-pointer select-none">
@@ -183,12 +193,14 @@ export function BottomBar({
 								<input
 									type="number"
 									min={0}
-									value={transportCost}
-									onChange={(e) =>
-										setTransportCost(parseFloat(e.target.value) || 0)
-									}
-									placeholder="0.00"
-									className="w-24 h-9 rounded border border-gray-200 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+									value={transportValue}
+									onChange={handleTransportChange}
+									placeholder="Required"
+									className={`w-24 h-9 rounded border px-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400 ${
+										transportCost === null ?
+											"border-red-400 bg-red-50 placeholder-red-400"
+										:	"border-gray-200"
+									}`}
 								/>
 							</div>
 							<label className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg cursor-pointer select-none">
